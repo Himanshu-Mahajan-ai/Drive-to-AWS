@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drive-shared"
+version = "0.1.0"
+description = "Shared models and enums for Drive-to-AWS services"
+requires-python = ">=3.11"
+keywords = ["google-drive", "s3", "celery", "fastapi"]
+dependencies = [
+  "pydantic>=2.6,<3.0",
+  "SQLAlchemy>=2.0,<3.0"
+]
