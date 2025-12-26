@@ -1,4 +1,4 @@
-# Drive-to-AWS (Multi-service)
+# Drive-to-AWS 
 
 Imports public Google Drive folder images into S3-compatible storage with FastAPI, Celery workers, Postgres metadata, and a React frontend. Features secure credential management, real-time progress tracking, and multi-format exports.
 
