@@ -13,5 +13,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt && \
 	pip install --no-cache-dir -e /app/shared
 
 COPY api-service/app /app/app
+COPY api-service/migrate.py /app/migrate.py
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD sh -c "python migrate.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"
