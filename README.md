@@ -131,3 +131,8 @@ docker compose up --build
 - All credentials encrypted; support both API key and service account for Google
 - Frontend settings modal supports add/select/delete/default-mark credentials
 - Export metadata as CSV/JSON/Excel for downstream analysis
+
+  Screenshots - 
+<img width="1537" height="520" alt="Screenshot 2025-12-25 002018" src="https://github.com/user-attachments/assets/7fd0d826-e4e2-4326-8ad1-beb07d90382d" />
+<img width="1120" height="928" alt="Screenshot 2025-12-26 175658" src="https://github.com/user-attachments/assets/ce11689b-0d40-459f-84a4-739af4a19835" />
+<img width="1867" height="923" alt="Screenshot 2025-12-26 175646" src="https://github.com/user-attachments/assets/e274b316-43f6-4723-b765-2ef9d2bf91d2" />
