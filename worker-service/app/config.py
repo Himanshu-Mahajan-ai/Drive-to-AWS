@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     google_service_account_json: str | None = None
     google_credentials: str | None = None  # file path to service account JSON
 
+    encryption_key: str | None = None  # For credential encryption (same as API service)
+
     @field_validator("s3_endpoint_url", mode="before")
     @classmethod
     def _empty_endpoint_to_none(cls, value: str | None):
@@ -26,6 +28,16 @@ class Settings(BaseSettings):
             return None
         trimmed = value.strip()
         return trimmed or None
+
+    @field_validator("encryption_key", mode="before")
+    @classmethod
+    def _generate_encryption_key(cls, value: str | None):
+        """Generate or use provided encryption key."""
+        if value:
+            return value
+        # Auto-generate a key if not provided (for development)
+        from cryptography.fernet import Fernet
+        return Fernet.generate_key().decode()
 
     class Config:
         env_file = ".env"

@@ -10,3 +10,4 @@ python-dotenv>=1.0
 httpx>=0.26
 google-api-python-client>=2.106
 google-auth>=2.27
+cryptography>=41.0

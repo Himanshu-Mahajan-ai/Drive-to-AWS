@@ -51,6 +51,7 @@ class ImportJob(Base):
     folder_url = Column(Text, nullable=False)
     bucket = Column(String(255), nullable=False)
     prefix = Column(String(255), nullable=True)
+    region = Column(String(50), nullable=True)  # AWS region
     status = Column(Enum(ImportStatus, native_enum=False), nullable=False, default=ImportStatus.pending)
     total_files = Column(Integer, nullable=True)
     completed_files = Column(Integer, nullable=False, default=0)

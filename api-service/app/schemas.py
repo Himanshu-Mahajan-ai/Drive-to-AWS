@@ -3,6 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+from uuid import UUID
 
 from shared.models import ImageStatus, ImportStatus
 
@@ -14,6 +15,8 @@ class ImportCreateRequest(BaseModel):
     concurrency: int = Field(default=8, ge=1, le=64)
     dry_run: bool = False
     max_items: int | None = Field(default=None, ge=1)
+    aws_credential_id: UUID | None = None
+    google_credential_id: UUID | None = None
 
 
 class ImportResponse(BaseModel):
@@ -22,6 +25,7 @@ class ImportResponse(BaseModel):
     folder_url: str
     bucket: str
     prefix: str | None
+    region: str | None
     total_files: int | None
     completed_files: int
     failed_files: int

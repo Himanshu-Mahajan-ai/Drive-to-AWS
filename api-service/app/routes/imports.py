@@ -4,7 +4,8 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from shared.models import ImportJob, ImportStatus
+from shared.models import ImportJob, ImportStatus, UserCredential, CredentialType
+from ..credentials import decrypt_credential
 from ..celery_client import celery_app
 from ..config import settings
 from ..dependencies import get_db
@@ -21,13 +22,37 @@ def _build_s3_bucket(request_bucket: str | None) -> str:
 def create_import(payload: ImportCreateRequest, db: Session = Depends(get_db)):
     job_id = uuid4()
     prefix = payload.prefix or f"google-drive/temp-{job_id}"
-    bucket = _build_s3_bucket(payload.bucket)
+
+    bucket: str | None = payload.bucket
+    aws_cred_id = payload.aws_credential_id
+    region: str | None = None
+
+    # If bucket not provided but an AWS credential id is, derive bucket and region from that credential
+    if not bucket and aws_cred_id:
+        cred = db.query(UserCredential).filter(UserCredential.id == aws_cred_id).first()
+        if not cred:
+            raise HTTPException(status_code=404, detail="AWS credential not found")
+        if cred.credential_type != CredentialType.aws:  # type: ignore[comparison-overlap]
+            raise HTTPException(status_code=400, detail="Provided credential is not AWS type")
+        data = decrypt_credential(str(cred.encrypted_data))
+        bucket = data.get("bucket") or None
+        region = data.get("region") or "us-east-1"
+    elif aws_cred_id:
+        # If bucket provided but credential id also provided, get region from credential
+        cred = db.query(UserCredential).filter(UserCredential.id == aws_cred_id).first()
+        if cred and cred.credential_type == CredentialType.aws:  # type: ignore[comparison-overlap]
+            data = decrypt_credential(str(cred.encrypted_data))
+            region = data.get("region") or "us-east-1"
+
+    bucket = _build_s3_bucket(bucket)
     job = ImportJob(
         id=job_id,
         folder_url=payload.folder_url,
         bucket=bucket,
         prefix=prefix,
+        region=region,
         status=ImportStatus.pending,
+        aws_credential_id=aws_cred_id,
     )
     db.add(job)
     db.commit()
@@ -64,8 +89,8 @@ def cancel_import(job_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Import job not found")
     if job.status in {ImportStatus.completed, ImportStatus.failed, ImportStatus.canceled}:
         return job
-    job.status = ImportStatus.canceled
-    job.last_error = "Canceled by user"
+    job.status = ImportStatus.canceled  # type: ignore[assignment]
+    job.last_error = "Canceled by user"  # type: ignore[assignment]
     db.commit()
     db.refresh(job)
     # Note: already queued tasks will check job status before work.

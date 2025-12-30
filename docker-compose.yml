@@ -55,6 +55,7 @@ services:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
+    command: celery -A app.tasks worker --loglevel=info --concurrency=16 --max-tasks-per-child=100
     env_file:
       - .env
     environment:
