@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   postgres:
     image: postgres:15
@@ -31,53 +33,25 @@ services:
     build:
       context: .
       dockerfile: api-service/Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     env_file:
       - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
-      S3_BUCKET: ${S3_BUCKET}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
     ports:
       - "8000:8000"
     depends_on:
       - postgres
       - redis
-      - minio
+
   worker:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
-    command: celery -A app.tasks worker --loglevel=info --concurrency=16 --max-tasks-per-child=100
+    command: celery -A app.tasks worker --loglevel=info
     env_file:
       - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
-      S3_BUCKET: ${S3_BUCKET}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON}
-      GOOGLE_CREDENTIALS: ${GOOGLE_CREDENTIALS}
-    volumes:
-      - ./service_account.json:/app/service_account.json:ro
     depends_on:
       - postgres
       - redis
-      - minio
 
   frontend:
     build:
@@ -86,8 +60,7 @@ services:
     env_file:
       - .env
     environment:
-      # Browser hits host-exposed API
-      VITE_API_BASE: http://localhost:8000/api/v1
+      VITE_API_BASE: http://YOUR_EC2_PUBLIC_IP:8000/api/v1
     ports:
       - "4173:4173"
     depends_on:
