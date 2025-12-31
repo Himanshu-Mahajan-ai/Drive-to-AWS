@@ -1,103 +1,47 @@
-# Project Structure
-
-## Directory Overview
+# Drive-to-AWS Project Structure
 
 ```
 drive-to-aws/
 ├── api-service/       # FastAPI REST API
+│   ├── app/
+│   │   ├── main.py           # Entry point
+│   │   ├── routes/           # API endpoints (imports, images, credentials)
+│   │   ├── config.py         # Settings & encryption
+│   │   ├── db.py             # Database setup
+│   │   └── schemas.py        # Request/response models
+│   └── requirements.txt
 ├── worker-service/    # Celery async worker
+│   ├── app/
+│   │   ├── tasks.py          # Celery tasks
+│   │   ├── drive_client.py   # Google Drive API
+│   │   ├── storage.py        # S3 upload
+│   │   └── config.py         # Worker config
+│   └── requirements.txt
 ├── frontend/          # React/Vite UI
-├── shared/            # Shared SQLAlchemy models
-├── docker-compose.yml # Service orchestration
-└── .env              # Environment variables
+│   ├── src/
+│   │   ├── App.tsx    # Main component
+│   │   ├── api.ts     # API client
+│   │   └── main.tsx   # Vite entry
+│   └── package.json
+├── shared/            # SQLAlchemy models
+│   └── shared/
+│       └── models.py  # ImportJob, Image, UserCredential
+├── docker-compose.yml
+└── pyrightconfig.json
 ```
 
----
+## Quick Overview
 
-## Services Explained
+| Service | Purpose | Tech |
+|---------|---------|------|
+| **API** | REST endpoints for jobs, images, credentials | FastAPI |
+| **Worker** | Async tasks (Drive → S3 transfers) | Celery |
+| **Frontend** | Job form, progress, exports | React/Vite |
+| **Shared** | Database models | SQLAlchemy |
 
-### API Service (`api-service/`)
-**FastAPI REST API** for:
-- Import job management (create, get, cancel)
-- Image metadata queries
-- Credential management (add, list, delete, set default)
+## Core Flow
 
-**Key Files**:
-- `config.py` - Settings & encryption key
-- `credentials.py` - Fernet encryption/decryption
-- `routes/imports.py` - Job endpoints
-- `routes/images.py` - Image endpoints
-- `routes/credentials.py` - Credential endpoints
-
-### Worker Service (`worker-service/`)
-**Celery async worker** for:
-- Listing files from Google Drive
-- Downloading from Drive (5MB chunks)
-- Uploading to S3 (with retries)
-- Updating job/image status
-
-**Key Files**:
-- `tasks.py` - Celery tasks (start_import, transfer_file)
-- `drive_client.py` - Google Drive API wrapper
-- `storage.py` - S3 upload utilities
-
-### Frontend (`frontend/`)
-**React/Vite UI** with:
-- Import job form
-- Real-time progress bar (1-sec polling)
-- Settings modal for credential management
-- CSV/JSON/Excel export
-- Dark ChatGPT-style theme
-
-**Key File**:
-- `App.tsx` - Main component with all features
-
-### Shared (`shared/`)
-**SQLAlchemy ORM models**:
-- `ImportJob` - Import job records
-- `Image` - File metadata
-- `UserCredential` - Encrypted credentials
-- Status & Type enums
-
----
-
-## Data Flow
-
-```
-1. User submits folder URL
-2. API creates ImportJob (status=pending)
-3. API enqueues start_import task
-4. Worker lists files from Drive, inserts to DB
-5. Worker enqueues transfer_file tasks (parallel)
-6. Each task: downloads from Drive → uploads to S3
-7. Frontend polls every 1s to show progress
-8. When done: shows S3 link, enables exports
-```
-
----
-
-## Database Tables
-
-| Table | Purpose |
-|-------|---------|
-| `import_jobs` | Job records (status, counts, S3 location) |
-| `images` | Files to transfer (Drive ID, S3 location, status) |
-| `user_credentials` | Encrypted AWS & Google credentials |
-
----
-
-## Environment Variables
-
-### Critical
-- `DATABASE_URL` - PostgreSQL connection
-- `REDIS_URL` - Redis broker
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` - AWS credentials
-- `S3_BUCKET` - Target bucket
-- `GOOGLE_CREDENTIALS` - Path to service account JSON
-- `ENCRYPTION_KEY` - Auto-generated if not provided
-
-### Optional
-- `S3_ENDPOINT_URL` - Leave empty for AWS; set to `http://minio:9000` for local
+User submits folder URL → API creates job → Worker lists Drive files → Worker transfers to S3 → Frontend shows progress → Export ready
 - `AWS_REGION` - Default: us-east-1
 
 ---
