@@ -21,8 +21,25 @@ class DriveFile:
 
 
 class DriveClient:
-    def __init__(self):
-        if settings.google_credentials:
+    def __init__(self, google_config: Optional[dict] = None):
+        \"\"\"
+        Initialize Google Drive client.
+        If google_config is provided, use those credentials.
+        Otherwise, fall back to environment settings.
+        If no credentials are provided, try to use public access (API key or unauthenticated).
+        \"\"\"
+        # Priority: provided config > env credentials > API key > unauthenticated (for public folders)
+        if google_config:
+            if google_config.get("service_account_json"):
+                info = json.loads(google_config["service_account_json"])
+                creds = service_account.Credentials.from_service_account_info(info)
+                self.service = build("drive", "v3", credentials=creds)
+            elif google_config.get("api_key"):
+                self.service = build("drive", "v3", developerKey=google_config["api_key"])
+            else:
+                # No credentials provided - try unauthenticated for public folders
+                self.service = build("drive", "v3", developerKey=None)
+        elif settings.google_credentials:
             info = json.loads(Path(settings.google_credentials).read_text())
             creds = service_account.Credentials.from_service_account_info(info)
             self.service = build("drive", "v3", credentials=creds)
@@ -33,7 +50,9 @@ class DriveClient:
         elif settings.google_api_key:
             self.service = build("drive", "v3", developerKey=settings.google_api_key)
         else:
-            raise RuntimeError("Google API credentials not configured")
+            # No credentials at all - try unauthenticated access for public folders
+            # This will work for publicly shared Google Drive folders
+            self.service = build("drive", "v3", developerKey=None)
 
     def get_folder_name(self, folder_id: str) -> str:
         """Fetch the actual folder name from Google Drive."""

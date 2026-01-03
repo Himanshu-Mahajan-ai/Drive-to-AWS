@@ -1,5 +1,4 @@
-version: "3.9"
-
+# Docker Compose v2 compatible (version field is deprecated)
 services:
   postgres:
     image: postgres:15
@@ -11,11 +10,21 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   minio:
     image: minio/minio:latest
@@ -28,6 +37,11 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   api:
     build:
@@ -39,32 +53,55 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   worker:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
-    command: celery -A app.tasks worker --loglevel=info
+    command: celery -A app.tasks worker --loglevel=info --concurrency=4
     env_file:
       - .env
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    env_file:
-      - .env
     environment:
-      VITE_API_BASE: http://YOUR_EC2_PUBLIC_IP:8000/api/v1
+      # This will be baked into the build - use relative path for production
+      # For AWS deployment, update this to your EC2 public IP or domain
+      VITE_API_BASE: /api/v1
     ports:
       - "4173:4173"
     depends_on:
       - api
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
 
 volumes:
   postgres_data:

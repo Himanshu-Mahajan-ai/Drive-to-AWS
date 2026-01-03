@@ -8,13 +8,15 @@ class Settings(BaseSettings):
     celery_broker_url: str | None = None
     celery_backend_url: str | None = None
 
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    # AWS credentials are OPTIONAL - retrieved per-job from DB or fallback to these
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
     aws_region: str = "us-east-1"
     s3_endpoint_url: str | None = None
     s3_force_path_style: bool = False
-    s3_bucket: str
+    s3_bucket: str | None = None  # Optional fallback bucket
 
+    # Google credentials are OPTIONAL - public folders work without them
     google_api_key: str | None = None
     google_service_account_json: str | None = None
     google_credentials: str | None = None  # file path to service account JSON

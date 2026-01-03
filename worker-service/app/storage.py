@@ -32,6 +32,12 @@ def make_s3_client(aws_config: Optional[dict] = None):
             config=config,
         )
     else:
+        # Use environment credentials if available
+        if not settings.aws_access_key_id or not settings.aws_secret_access_key:
+            raise RuntimeError(
+                "AWS credentials not configured. Please add credentials via the Settings UI "
+                "or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
+            )
         return boto3.client(
             "s3",
             region_name=settings.aws_region,

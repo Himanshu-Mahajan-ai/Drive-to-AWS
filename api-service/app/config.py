@@ -9,13 +9,15 @@ class Settings(BaseSettings):
     celery_broker_url: str | None = None
     celery_backend_url: str | None = None
 
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    # AWS credentials are now OPTIONAL - they can be stored per-user in DB
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
     aws_region: str = "us-east-1"
     s3_endpoint_url: str | None = None
     s3_force_path_style: bool = False
-    s3_bucket: str
+    s3_bucket: str | None = None  # Optional fallback bucket
 
+    # Google API key is optional - public folders don't need it
     google_api_key: str | None = None
 
     api_host: str = "0.0.0.0"

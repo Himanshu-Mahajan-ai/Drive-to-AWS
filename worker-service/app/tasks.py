@@ -8,7 +8,7 @@ from celery import Celery
 from sqlalchemy.orm import Session
 from cryptography.fernet import Fernet
 
-from shared.models import Image, ImageStatus, ImportJob, ImportStatus, UserCredential
+from shared.models import Image, ImageStatus, ImportJob, ImportStatus, UserCredential, CredentialType
 from .config import settings
 from .db import SessionLocal
 from .drive_client import DriveClient
@@ -59,7 +59,18 @@ def start_import(job_id: str, folder_url: str, bucket: str, prefix: Optional[str
         job.status = ImportStatus.running  # type: ignore[assignment]
         session.commit()
 
-        drive = DriveClient()
+        # Get Google credentials if job has google_credential_id
+        google_config = None
+        if job.google_credential_id:
+            cred = session.query(UserCredential).filter(UserCredential.id == job.google_credential_id).first()
+            if cred:
+                try:
+                    google_config = decrypt_credential(str(cred.encrypted_data))
+                except Exception as e:
+                    # Failed to decrypt, continue without custom credentials
+                    pass
+
+        drive = DriveClient(google_config=google_config)
         folder_id = _parse_folder_id(folder_url)
         
         # Fetch actual folder name from Google Drive
@@ -103,6 +114,7 @@ def start_import(job_id: str, folder_url: str, bucket: str, prefix: Optional[str
                                 "file_name": saved.name,
                                 "mime_type": saved.mime_type,
                                 "aws_credential_id": str(job.aws_credential_id) if job.aws_credential_id is not None else None,
+                                "google_credential_id": str(job.google_credential_id) if job.google_credential_id is not None else None,
                             },
                         )
                 batch.clear()
@@ -122,6 +134,7 @@ def start_import(job_id: str, folder_url: str, bucket: str, prefix: Optional[str
                             "file_name": saved.name,
                             "mime_type": saved.mime_type,
                             "aws_credential_id": str(job.aws_credential_id) if job.aws_credential_id is not None else None,
+                            "google_credential_id": str(job.google_credential_id) if job.google_credential_id is not None else None,
                         },
                     )
             batch.clear()
@@ -152,7 +165,7 @@ def start_import(job_id: str, folder_url: str, bucket: str, prefix: Optional[str
 
 
 @celery_app.task(name="tasks.transfer_file", bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True, retry_backoff_max=60, retry_jitter=True)
-def transfer_file(self, image_id: str, bucket: str, prefix: Optional[str], drive_file_id: str, file_name: str, mime_type: Optional[str], aws_credential_id: Optional[str] = None):
+def transfer_file(self, image_id: str, bucket: str, prefix: Optional[str], drive_file_id: str, file_name: str, mime_type: Optional[str], aws_credential_id: Optional[str] = None, google_credential_id: Optional[str] = None):
     session: Session = SessionLocal()
     try:
         image = session.query(Image).filter(Image.id == image_id).first()
@@ -166,7 +179,18 @@ def transfer_file(self, image_id: str, bucket: str, prefix: Optional[str], drive
         image.status = ImageStatus.transferring  # type: ignore[assignment]
         session.commit()
 
-        drive = DriveClient()
+        # Get Google credentials if provided
+        google_config = None
+        if google_credential_id:
+            cred_uuid = UUID(google_credential_id) if isinstance(google_credential_id, str) else google_credential_id
+            cred = session.query(UserCredential).filter(UserCredential.id == cred_uuid).first()
+            if cred:
+                try:
+                    google_config = decrypt_credential(str(cred.encrypted_data))
+                except Exception:
+                    pass  # Continue without custom Google credentials
+
+        drive = DriveClient(google_config=google_config)
         data = drive.download_stream(drive_file_id)
 
         # Use custom AWS credentials if provided, otherwise use defaults
@@ -177,6 +201,10 @@ def transfer_file(self, image_id: str, bucket: str, prefix: Optional[str], drive
             cred = session.query(UserCredential).filter(UserCredential.id == cred_uuid).first()
             if cred:
                 aws_config = decrypt_credential(str(cred.encrypted_data))
+        
+        # Check if we have AWS credentials (either from config or settings)
+        if not aws_config and not settings.aws_access_key_id:
+            raise RuntimeError("AWS credentials not configured. Add credentials via Settings UI or set AWS_ACCESS_KEY_ID environment variable.")
         
         client = make_s3_client(aws_config)
         key = f"{prefix}/{file_name}" if prefix else file_name
