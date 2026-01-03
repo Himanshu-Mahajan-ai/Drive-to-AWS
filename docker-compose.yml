@@ -53,6 +53,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
+<<<<<<< HEAD
       postgres:
         condition: service_healthy
       redis:
@@ -63,11 +64,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+=======
+      - postgres
+      - redis
+>>>>>>> 2ac236dc0c5b56951338ea7036b08950c11e91ae
 
   worker:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
+<<<<<<< HEAD
     command: celery -A app.tasks worker --loglevel=info --concurrency=4
     env_file:
       - .env
@@ -77,15 +83,27 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+=======
+    command: celery -A app.tasks worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+>>>>>>> 2ac236dc0c5b56951338ea7036b08950c11e91ae
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
     environment:
+<<<<<<< HEAD
       # This will be baked into the build - use relative path for production
       # For AWS deployment, update this to your EC2 public IP or domain
       VITE_API_BASE: /api/v1
+=======
+      VITE_API_BASE: http://YOUR_EC2_PUBLIC_IP:8000/api/v1
+>>>>>>> 2ac236dc0c5b56951338ea7036b08950c11e91ae
     ports:
       - "4173:4173"
     depends_on:
