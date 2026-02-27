@@ -1,6 +1,6 @@
-# Drive-to-AWS 🚀
+# CloudPort 🚀
 
-Transfer images from Google Drive to AWS S3 effortlessly with a modern, production-ready web application.
+Transfer images from Google Drive to AWS S3 and to other platforms as well effortlessly with a modern, production-ready web application.
 
 ## ✨ Key Features
 
